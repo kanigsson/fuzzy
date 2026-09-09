@@ -42,6 +42,37 @@ Fuzzy.Search ("fa", Data, Items, Results, Count);
 --  Consume Results (Results'First .. Results'First + Count - 1).
 ```
 
+Candidate text must be packed into one `String` that the caller owns.
+`Fuzzy.Corpus.Append` does that packing, so clients need not re-derive the
+capacity arithmetic. It appends into a caller-provided buffer and reports the
+slice; on failure the buffer and fill level are untouched, so a client whose
+total size is not known in advance can grow the buffer and retry. Slices are
+absolute indexes, so they survive a move to a larger buffer that keeps the same
+lower bound and copies the filled prefix.
+
+```ada
+with Fuzzy.Corpus;
+--  Inside a client procedure:
+Buffer : String (1 .. 4096);
+Used : Natural := 0;
+Items : Fuzzy.Candidate_Array (1 .. 2);
+Slice : Fuzzy.Text_Slice;
+Ok : Boolean;
+Results : Fuzzy.Search_Result_Array (1 .. 30);
+Count : Natural;
+--  In the procedure body:
+Fuzzy.Corpus.Append (Buffer, Used, "src/foo.adb", Slice, Ok);
+Items (1) := (Text => Slice);
+Fuzzy.Corpus.Append (Buffer, Used, "src/bar.ads", Slice, Ok);
+Items (2) := (Text => Slice);
+Fuzzy.Search ("fa", Buffer, Items, Results, Count);
+```
+
+Passing `Buffer` or `Buffer (1 .. Used)` to `Search` is equivalent, because no
+slice covers the unused tail. `Room` reports the space left and `Holds` states
+that a slice contains a given item; both are available to clients for their own
+reasoning.
+
 `Score` scores one borrowed slice. `Search` returns candidate indexes and scores.
 `Match_Details` recomputes the same score and returns a highlight offset for each
 pattern character; its positions buffer must hold at least `Pattern'Length`
@@ -102,7 +133,9 @@ lemmas are erased in release builds.
 
 The CLI reads one candidate per line and prints the ranked texts. Its syntax is
 `fuzzy QUERY [K]`, with K defaulting to 30. It accepts empty lines and K=0; it
-cannot represent a candidate containing a newline. Client applications should
+cannot represent a candidate containing a newline. Because standard input has no
+size known in advance, the CLI owns its corpus storage and grows it by doubling,
+which is why it is the component that allocates. Client applications should
 link the library directly.
 
 ## Verification scope
@@ -119,6 +152,10 @@ establish:
 - Every returned result identifies a matching input candidate and carries the
   same score as `Score`; `Match_Details` returns that score as well.
 - The returned prefix is strictly ordered by the documented ranking relation.
+- A successful append yields a valid slice holding exactly the appended item,
+  and leaves the already-filled prefix of the buffer unchanged, so slices handed
+  out earlier stay valid and keep holding what they held. A refused append
+  changes nothing.
 
 There are no assumed lemmas, skipped proofs, or SPARK exclusions in the library.
 Exact best-K membership and result-count completeness are tested against an

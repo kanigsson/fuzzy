@@ -1,5 +1,6 @@
 with Ada.Text_IO;
 with Fuzzy;
+with Fuzzy.Corpus;
 
 procedure Test_Fuzzy is
    use Fuzzy;
@@ -156,6 +157,92 @@ procedure Test_Fuzzy is
          Check (Results (18 + R) = Expected (R));
       end loop;
    end Search_Case;
+   --  One of four corpus items, named by a digit so sequences of appends can
+   --  be enumerated as strings.
+   function Piece (Kind : Natural) return String is
+     (case Kind is
+        when 0 => "",
+        when 1 => "a",
+        when 2 => "ab",
+        when others => "b/a");
+
+   function Text_Of (Data : String; Slice : Text_Slice) return String is
+     (if Slice.Length = 0 then ""
+      else Data (Slice.First .. Slice.First + (Slice.Length - 1)));
+
+   --  Replay one sequence of appends into a buffer of the given capacity and
+   --  check the reported slices, the untouched-on-failure guarantee, that
+   --  earlier slices survive later appends, and that the packed result is a
+   --  usable Search input both whole and trimmed to the fill level.
+   procedure Check_Build (Capacity : Natural; Sequence : String) is
+      Buffer : String (1 .. Capacity) := [others => '#'];
+      Used : Natural := 0;
+      Slices : array (1 .. Sequence'Length) of Text_Slice := [others => (1, 0)];
+      Kinds : array (1 .. Sequence'Length) of Natural := [others => 0];
+      Kept : Natural := 0;
+   begin
+      for S in Sequence'Range loop
+         declare
+            Kind : constant Natural :=
+              Character'Pos (Sequence (S)) - Character'Pos ('0');
+            Item : constant String := Piece (Kind);
+            Before : constant String := Buffer;
+            Before_Used : constant Natural := Used;
+            Slice : Text_Slice;
+            Ok : Boolean;
+         begin
+            Check (Corpus.Room (Buffer, Used) = Capacity - Used);
+            Corpus.Append (Buffer, Used, Item, Slice, Ok);
+            Check (Ok = (Item'Length <= Capacity - Before_Used));
+            if Ok then
+               Check (Used = Before_Used + Item'Length);
+               Check (Slice = Corpus.Appended_Slice (Before, Before_Used, Item));
+               Check (Valid (Buffer, Slice));
+               Check (Corpus.Holds (Buffer, Slice, Item));
+               Check (Buffer (1 .. Before_Used) = Before (1 .. Before_Used));
+               Kept := Kept + 1;
+               Slices (Kept) := Slice;
+               Kinds (Kept) := Kind;
+            else
+               Check (Used = Before_Used and then Buffer = Before);
+               Check (Slice.Length = 0);
+            end if;
+         end;
+      end loop;
+      for K in 1 .. Kept loop
+         Check (Valid (Buffer, Slices (K)));
+         Check (Corpus.Holds (Buffer, Slices (K), Piece (Kinds (K))));
+      end loop;
+      declare
+         C : Candidate_Array (1 .. Kept);
+         R : Search_Result_Array (1 .. Kept);
+         N : Natural;
+      begin
+         for K in 1 .. Kept loop
+            C (K) := (Text => Slices (K));
+         end loop;
+         Check (Valid (Buffer, C));
+         Check (Valid (Buffer (1 .. Used), C));
+         for K in 1 .. Kept loop
+            Search (Piece (Kinds (K)), Buffer, C, R, N);
+            --  Candidate K holds exactly this pattern, so it must be found.
+            Check (N >= 1);
+            for J in 1 .. N loop
+               Check (Exists (Piece (Kinds (K)),
+                              Text_Of (Buffer, C (R (J).Candidate).Text)));
+            end loop;
+            --  Trimming the corpus to the fill level cannot change the answer.
+            declare
+               Trimmed : Search_Result_Array (1 .. Kept);
+               M : Natural;
+            begin
+               Search (Piece (Kinds (K)), Buffer (1 .. Used), C, Trimmed, M);
+               Check (M = N and then Trimmed (1 .. M) = R (1 .. N));
+            end;
+         end loop;
+      end;
+   end Check_Build;
+
 begin
    Pair ("", "");
    Pair ("aa", "a");
@@ -215,6 +302,53 @@ begin
       Search ("a", Data, C, R, N);
       Check (N = 2 and then R (1).Score = R (2).Score);
       Check (R (1).Candidate = 8 and R (2).Candidate = 7);
+   end;
+   --  Corpus packing.
+   declare
+      Kinds : constant String := "0123";
+   begin
+      for Capacity in 0 .. 8 loop
+         Check_Build (Capacity, "");
+         for A in Kinds'Range loop
+            Check_Build (Capacity, [Kinds (A)]);
+            for B in Kinds'Range loop
+               Check_Build (Capacity, [Kinds (A), Kinds (B)]);
+               for C in Kinds'Range loop
+                  Check_Build (Capacity, [Kinds (A), Kinds (B), Kinds (C)]);
+               end loop;
+            end loop;
+         end loop;
+      end loop;
+   end;
+   declare
+      --  Buffer bounds other than one, and a buffer with a null range.
+      Buffer : String (5 .. 12) := [others => '#'];
+      Empty : String (9 .. 8);
+      Used : Natural := 0;
+      Slice : Text_Slice;
+      Ok : Boolean;
+   begin
+      Corpus.Append (Buffer, Used, "abc", Slice, Ok);
+      Check (Ok and Used = 3 and Slice = Text_Slice'(5, 3));
+      Corpus.Append (Buffer, Used, "de", Slice, Ok);
+      Check (Ok and Used = 5 and Slice = Text_Slice'(8, 2));
+      Check (Buffer = "abcde###");
+      Corpus.Append (Buffer, Used, "ffff", Slice, Ok);
+      Check (not Ok and Used = 5 and Buffer = "abcde###");
+      Corpus.Append (Buffer, Used, "fff", Slice, Ok);
+      Check (Ok and Used = 8 and Buffer = "abcdefff");
+      Corpus.Append (Buffer, Used, "", Slice, Ok);
+      --  A full buffer still accepts an empty item; its First is not a
+      --  buffer position, so it stays representable.
+      Check (Ok and Used = 8 and Slice = Text_Slice'(1, 0));
+      Corpus.Append (Buffer, Used, "g", Slice, Ok);
+      Check (not Ok);
+      Used := 0;
+      Corpus.Append (Empty, Used, "", Slice, Ok);
+      Check (Ok and Used = 0 and Slice.Length = 0);
+      Check (Corpus.Room (Empty, Used) = 0);
+      Corpus.Append (Empty, Used, "a", Slice, Ok);
+      Check (not Ok and Used = 0);
    end;
    Ada.Text_IO.Put_Line ("PASS:" & Checks'Image & " checks");
 end Test_Fuzzy;

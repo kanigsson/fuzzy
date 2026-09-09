@@ -14,18 +14,18 @@ GNATprove is configured to fail on warnings and unproved checks.
 
 ## Proof
 
-**323/323 checks discharged; zero unproved or justified checks.**
+**376/376 checks discharged; zero unproved or justified checks.**
 
 | Category | Checks |
 | --- | ---: |
-| Data dependencies | 10 |
-| Initialization | 17 |
-| Runtime safety | 155 |
+| Data dependencies | 11 |
+| Initialization | 20 |
+| Runtime safety | 194 |
 | Assertions and loop invariants | 51 |
-| Functional contracts | 67 |
-| Termination | 23 |
+| Functional contracts | 73 |
+| Termination | 27 |
 
-All 19 reported subprograms/packages in the library unit were analyzed. The
+All 24 reported subprograms/packages in the two library units were analyzed. The
 proof establishes the safety and functional properties listed in README.md,
 including subsequence soundness, rejection of every alternative alignment,
 ordered highlight positions, score consistency, and sorted search output.
@@ -36,8 +36,8 @@ Manifest: [validation/manifest.json](validation/manifest.json).
 
 ## Tests
 
-Both the release and assertion-enabled library builds passed **132,415 Ada
-checks** and **11 CLI checks**. The latter build executes ghost code and contracts.
+Both the release and assertion-enabled library builds passed **155,658 Ada
+checks** and **16 CLI checks**. The latter build executes ghost code and contracts.
 
 The tests exhaust candidate strings of length 0–4 and patterns of length 0–3
 over `aB/_`, comparing matching against an independent existential oracle.
@@ -46,8 +46,17 @@ Search is compared against full selection sorting across all 85 patterns and
 capacities 0–10, including empty candidates and duplicate texts. Additional cases
 cover path/word bonuses, case sensitivity, non-one array bounds, indexes at
 `Integer'Last`, no candidates, empty output buffers, and shorter-text tie-breaking
-that overrides candidate index. CLI tests cover line packing, truncation, empty
-lines, missing final newlines, and argument errors.
+that overrides candidate index.
+
+Corpus packing replays every sequence of up to three items drawn from four
+texts into buffers of capacity 0 through 8, checking the reported slice, that a
+refused append leaves buffer and fill level untouched, that earlier slices still
+hold their items afterwards, and that the packed result gives identical search
+answers whole and trimmed to the fill level. Further cases cover buffer bounds
+other than one, a null buffer, a full buffer still accepting an empty item, and
+an item larger than the remaining room. CLI tests cover line packing,
+truncation, empty lines, missing final newlines, argument errors, and both
+buffer-growth paths.
 
 ## Synthetic benchmark
 
@@ -60,10 +69,10 @@ cross-machine performance guarantees.
 
 | Query | Workload | Median ms/search | Range ms/search |
 | --- | --- | ---: | ---: |
-| `fma` | Every candidate matches | 6.587 | 6.525–6.639 |
-| `999` | Selective numeric subsequence | 7.811 | 7.793–8.182 |
-| `zzz` | No matches | 8.574 | 8.369–8.589 |
-| empty | All candidates, length/index ranking | 0.451 | 0.442–0.451 |
+| `fma` | Every candidate matches | 6.616 | 6.556–6.650 |
+| `999` | Selective numeric subsequence | 8.100 | 8.065–8.140 |
+| `zzz` | No matches | 8.653 | 8.643–8.701 |
+| empty | All candidates, length/index ranking | 0.462 | 0.453–0.462 |
 
 The recorded run also includes 10,000-candidate measurements. Raw samples are in
 [validation/benchmarks.json](validation/benchmarks.json). To vary size, query, or K:
