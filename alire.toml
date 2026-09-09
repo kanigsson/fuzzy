@@ -1,0 +1,35 @@
+name = "fuzzy"
+description = "Allocation-free SPARK subsequence matching with top-K ranking"
+version = "1.0.0"
+
+authors = ["Johannes Kanig"]
+maintainers = ["Johannes Kanig <kanig@adacore.com>"]
+maintainers-logins = ["kanig"]
+licenses = "Apache-2.0"
+
+tags = ["fuzzy", "matching", "search", "spark", "ranking"]
+
+project-files = ["fuzzy.gpr"]
+
+long-description = """
+`Fuzzy` implements case-sensitive, byte-oriented subsequence matching and
+deterministic top-K ranking. Candidate text and metadata stay owned by the
+caller: the library allocates nothing, uses constant auxiliary storage, and has
+no filesystem, Git, or I/O dependency.
+
+The whole library is proved with GNATprove for runtime safety, initialization,
+global dependencies, and termination, plus functional contracts relating the
+implementation to a recursive earliest-occurrence subsequence model. The `fuzzy`
+CLI, the tests, and the benchmark are ordinary Ada/Python outside the proof
+boundary and are not built by `alr build`.
+
+See `README.md` for the scoring rules and `VALIDATION.md` for measured results.
+"""
+
+[[depends-on]]
+gnat = ">=12 & <2000"
+
+[configuration]
+#  The project provides its own build modes through the FUZZY_BUILD external;
+#  no generated configuration package is needed.
+disabled = true

@@ -1,0 +1,21 @@
+library project Fuzzy is
+   type Build_Mode is ("release", "checks");
+   Build : Build_Mode := external ("FUZZY_BUILD", "release");
+   for Source_Dirs use ("src");
+   for Object_Dir use "obj/" & Build & "/library";
+   for Library_Dir use "lib/" & Build;
+   for Library_Name use "fuzzy";
+   for Library_Kind use "static";
+   package Compiler is
+      case Build is
+         when "release" =>
+            for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-O2");
+         when "checks" =>
+            for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnata", "-O2");
+      end case;
+   end Compiler;
+   package Prove is
+      for Proof_Dir use "proof";
+      for Proof_Switches ("Ada") use ("--report=all", "--warnings=error", "--checks-as-errors=on");
+   end Prove;
+end Fuzzy;

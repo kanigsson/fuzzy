@@ -1,0 +1,16 @@
+with "fuzzy.gpr";
+project Tools is
+   for Source_Dirs use ("cli", "tests", "benchmarks");
+   for Object_Dir use "obj/" & Fuzzy.Build & "/tools";
+   case Fuzzy.Build is
+      when "release" => for Exec_Dir use "bin";
+      when "checks" => for Exec_Dir use "bin/checks";
+   end case;
+   for Main use ("fuzzy_cli.adb", "test_fuzzy.adb", "bench_fuzzy.adb");
+   package Builder is
+      for Executable ("fuzzy_cli.adb") use "fuzzy";
+   end Builder;
+   package Compiler is
+      for Default_Switches ("Ada") use ("-gnat2022", "-gnatwa", "-gnata", "-O2");
+   end Compiler;
+end Tools;
