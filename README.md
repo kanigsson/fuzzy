@@ -1,10 +1,8 @@
 # Fuzzy
 
-An allocation-free SPARK library for case-sensitive, byte-oriented subsequence
-matching and deterministic top-K search. It implements version 1 of
-[fuzzy_matcher_design.md](fuzzy_matcher_design.md). Candidate text and metadata
-remain owned by the caller; the library has no filesystem, Git, or I/O dependency.
-The small Ada CLI is outside SPARK.
+An allocation-free fuzzy matcher Ada/SPARK library. Case-sensitive,
+byte-oriented (no encoding support), returns the K best scores. A small unproved
+CLI is also provided for convenience.
 
 ## Build and use
 
@@ -69,9 +67,7 @@ Fuzzy.Search ("fa", Buffer, Items, Results, Count);
 ```
 
 Passing `Buffer` or `Buffer (1 .. Used)` to `Search` is equivalent, because no
-slice covers the unused tail. `Room` reports the space left and `Holds` states
-that a slice contains a given item; both are available to clients for their own
-reasoning.
+slice refers to the unused part.
 
 `Score` scores one borrowed slice. `Search` returns candidate indexes and scores.
 `Match_Details` recomputes the same score and returns a highlight offset for each
