@@ -165,4 +165,6 @@ policies are deferred.
 
 ## License
 
-Apache License 2.0. See [LICENSE](LICENSE).
+Copyright 2026 Johannes Kanig.
+
+Licensed under the Apache License, Version 2.0. See [LICENSE](LICENSE).
