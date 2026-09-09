@@ -1,7 +1,9 @@
 # Validation
 
-Validated on 2026-09-09 with the matching local GNAT Pro 27 toolchain and
-GNATprove, using CVC5 and Z3. Reproduce the complete run with:
+Validated on 2026-09-09 with FSF GNAT 16.1.0 and GNATprove FSF 16.1.0 as
+installed by Alire, using the CVC5 and Z3 provers bundled with that GNATprove.
+The recorded manifest pins the exact tool paths and versions. Reproduce the
+complete run with:
 
 ```sh
 python3 scripts/validate.py
@@ -69,10 +71,10 @@ cross-machine performance guarantees.
 
 | Query | Workload | Median ms/search | Range ms/search |
 | --- | --- | ---: | ---: |
-| `fma` | Every candidate matches | 6.616 | 6.556–6.650 |
-| `999` | Selective numeric subsequence | 8.100 | 8.065–8.140 |
-| `zzz` | No matches | 8.653 | 8.643–8.701 |
-| empty | All candidates, length/index ranking | 0.462 | 0.453–0.462 |
+| `fma` | Every candidate matches | 6.506 | 6.413–6.909 |
+| `999` | Selective numeric subsequence | 8.085 | 8.078–8.258 |
+| `zzz` | No matches | 9.005 | 8.861–9.033 |
+| empty | All candidates, length/index ranking | 0.444 | 0.443–0.462 |
 
 The recorded run also includes 10,000-candidate measurements. Raw samples are in
 [validation/benchmarks.json](validation/benchmarks.json). To vary size, query, or K:

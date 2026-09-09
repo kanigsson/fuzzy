@@ -1,9 +1,9 @@
 name = "fuzzy"
 description = "Allocation-free SPARK subsequence matching with top-K ranking"
-version = "1.0.0"
+version = "0.1.0"
 
 authors = ["Johannes Kanig"]
-maintainers = ["Johannes Kanig <kanig@adacore.com>"]
+maintainers = ["Johannes Kanig <johannes.kanig@gmail.com>"]
 maintainers-logins = ["kanigsson"]
 licenses = "Apache-2.0"
 website = "https://github.com/kanigsson/fuzzy"
