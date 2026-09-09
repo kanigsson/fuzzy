@@ -4,8 +4,9 @@ version = "1.0.0"
 
 authors = ["Johannes Kanig"]
 maintainers = ["Johannes Kanig <kanig@adacore.com>"]
-maintainers-logins = ["kanig"]
+maintainers-logins = ["kanigsson"]
 licenses = "Apache-2.0"
+website = "https://github.com/kanigsson/fuzzy"
 
 tags = ["fuzzy", "matching", "search", "spark", "ranking"]
 
