@@ -127,12 +127,41 @@ This favors small display limits; a heap can be introduced if larger K workloads
 justify it. Detailed matching reruns the greedy alignment after scoring. Proof-only arrays and
 lemmas are erased in release builds.
 
-The CLI reads one candidate per line and prints the ranked texts. Its syntax is
-`fuzzy QUERY [K]`, with K defaulting to 30. It accepts empty lines and K=0; it
-cannot represent a candidate containing a newline. Because standard input has no
-size known in advance, the CLI owns its corpus storage and grows it by doubling,
-which is why it is the component that allocates. Client applications should
-link the library directly.
+The CLI reads one candidate per input record and prints the ranked texts. Its
+syntax is `fuzzy [--read0] [--print0] [--] QUERY [K]`, with K defaulting to 30.
+Records are newline-delimited by default; `--read0` and `--print0` switch input
+and output framing independently to NUL, so that a candidate containing a
+newline can be represented. A record may hold any byte other than the delimiter
+in force. Input need not end with a delimiter, and a delimiter at the very end
+does not add an empty record. Empty records and K=0 are accepted. A lone `--`
+ends the options, so a query beginning with a dash stays reachable. Because
+standard input has no size known in advance, the CLI owns its corpus storage and
+grows it by doubling, which is why it is the component that allocates. Client
+applications should link the library directly.
+
+`--interactive` turns the CLI into a full-screen picker instead of a batch
+filter. It reads all candidates from standard input, then takes over
+`/dev/tty` in raw mode: the query is re-matched against the whole corpus on
+every keystroke, matched characters are highlighted, and the accepted
+candidate is written to standard output. Standard output therefore stays free
+to be a pipe or a command substitution, which is what a shell binding needs. A
+positional QUERY becomes the initial query rather than a fixed one, and K is
+not accepted, because the display bounds how many results are useful.
+
+Keys follow fzf where they overlap: characters edit the query, `Ctrl-U` clears
+it, `Ctrl-W` deletes a word, `Ctrl-A`/`Ctrl-E`/arrows move within it,
+`Up`/`Down`/`Ctrl-P`/`Ctrl-N`/`Ctrl-K`/`Ctrl-J` move the selection, `Enter`
+accepts, and `Esc` or `Ctrl-C` aborts. The exit status is 0 when a candidate
+was accepted, 1 when nothing matched, 2 when there is no usable terminal, and
+130 on abort. The terminal mode is restored on every exit path, including
+`SIGTERM` and `SIGHUP`.
+
+The picker asks the matcher for one screenful of results and doubles that
+bound only when the selection actually reaches the end of what came back, so
+scrolling is unbounded without paying for a large K on every keystroke. The
+terminal size is re-read on each redraw, so a resize takes effect on the next
+keypress without a signal handler. There is no multi-selection yet, so the
+picker suits a history binding but not yet a multi-file one.
 
 ## Verification scope
 

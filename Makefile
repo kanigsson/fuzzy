@@ -9,11 +9,13 @@ all:
 test: all
 	bin/test_fuzzy
 	python3 tests/test_cli.py
+	python3 tests/test_pick.py
 
 test-contracts:
 	$(GPRBUILD) -P tools.gpr -XFUZZY_BUILD=checks -j$(JOBS)
 	bin/checks/test_fuzzy
 	FUZZY_BIN=bin/checks/fuzzy python3 tests/test_cli.py
+	FUZZY_BIN=bin/checks/fuzzy python3 tests/test_pick.py
 
 flow:
 	$(GNATPROVE) -P fuzzy.gpr --mode=flow -j$(JOBS)

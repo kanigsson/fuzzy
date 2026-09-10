@@ -6,7 +6,12 @@ import os
 CLI = Path(os.environ.get("FUZZY_BIN", Path(__file__).resolve().parents[1] / "bin" / "fuzzy")).resolve()
 
 def run(*args, data=""):
-    return subprocess.run([CLI, *args], input=data, text=True, capture_output=True)
+    """Records may contain any byte other than the delimiter, so the adapter is
+    driven as a byte channel and decoded only where the test wants text."""
+    r = subprocess.run([CLI, *args], input=data.encode(), capture_output=True)
+    r.stdout = r.stdout.decode()
+    r.stderr = r.stderr.decode()
+    return r
 
 r = run("ab", data="zz\na_b\nab\nAB\nab\n")
 assert (r.returncode, r.stdout, r.stderr) == (0, "ab\nab\na_b\n", ""), r
@@ -37,4 +42,27 @@ assert (r.returncode, r.stdout) == (0, "a\n"), r.returncode
 r = run("", "2", data=big + "\n")
 assert (r.returncode, r.stdout) == (0, big + "\n"), r.returncode
 
-print("PASS: 16 CLI checks")
+# NUL framing. The shell history integration needs it: a history entry may
+# itself span several lines, which newline framing cannot represent.
+assert run("--read0", "ab", data="zz\0a_b\0ab\0").stdout == "ab\na_b\n"
+assert run("--read0", "ab", data="zz\0ab").stdout == "ab\n"  # no final delimiter
+assert run("--read0", "", data="\0").stdout == "\n"  # one empty record
+assert run("--read0", "ab", data="").stdout == ""
+assert run("--print0", "ab", data="ab\n").stdout == "ab\0"
+assert run("--print0", "", data="\n").stdout == "\0"
+multiline = "git commit -m 'a\nb'"
+r = run("--read0", "--print0", "gc", data=multiline + "\0ls\0")
+assert (r.returncode, r.stdout) == (0, multiline + "\0"), r
+# A record straddling many reads of the input, in both framings.
+assert run("--read0", "", "2", data=big + "\0").stdout == big + "\n"
+assert run("--read0", "--print0", "", "1", data="a\0" + big + "\0").stdout == "a\0"
+
+# A lone "--" ends the options, keeping a query that starts with a dash
+# reachable; anything else beginning with two dashes is an error.
+assert run("--", "-x", data="-x\ny\n").stdout == "-x\n"
+assert run("--print0", "--", "-x", "1", data="-x\n").stdout == "-x\0"
+for args in [("--bogus", "a"), ("--read0",), ("--",), ("--", "a", "1", "extra")]:
+    r = run(*args)
+    assert r.returncode != 0 and "usage:" in r.stderr, r
+
+print("PASS: 30 CLI checks")

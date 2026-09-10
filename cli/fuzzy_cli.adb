@@ -1,141 +1,144 @@
+with Ada.Characters.Latin_1;
 with Ada.Command_Line;
-with Ada.Text_IO;
-with Ada.Unchecked_Deallocation;
-with Fuzzy.Corpus;
+with Ada.Text_IO.Text_Streams;
+with Fuzzy;
+with Fuzzy_Input;
+with Fuzzy_Select;
 
 procedure Fuzzy_CLI is
    use Ada.Command_Line;
    use Ada.Text_IO;
 
-   type Text_Buffer is access String;
-   type Candidate_Buffer is access Fuzzy.Candidate_Array;
-   procedure Free is new Ada.Unchecked_Deallocation (String, Text_Buffer);
-   procedure Free is
-     new Ada.Unchecked_Deallocation (Fuzzy.Candidate_Array, Candidate_Buffer);
+   Output : constant Ada.Text_IO.Text_Streams.Stream_Access :=
+     Ada.Text_IO.Text_Streams.Stream (Standard_Output);
 
-   --  The library never allocates; the corpus storage belongs here because
-   --  standard input has no size known in advance. Both buffers start at
-   --  index one and grow by doubling. Slices survive a move because they are
-   --  absolute indexes into a buffer whose lower bound and filled prefix the
-   --  move preserves.
-   Text : Text_Buffer := new String (1 .. 64 * 1024);
-   Used : Natural := 0;
-   Items : Candidate_Buffer := new Fuzzy.Candidate_Array (1 .. 1024);
-   Count : Natural := 0;
+   --  Input and output framing are chosen independently, matching the way the
+   --  shell integration asks for them.
+   Read_Delimiter : Character := Ada.Characters.Latin_1.LF;
+   Write_Delimiter : Character := Ada.Characters.Latin_1.LF;
+   Interactive : Boolean := False;
+
+   Corpus : Fuzzy_Input.Corpus;
    Limit : Natural := 30;
 
    procedure Usage is
    begin
-      Put_Line (Standard_Error, "usage: fuzzy QUERY [K]  (one candidate per stdin line)");
+      Put_Line
+        (Standard_Error,
+         "usage: fuzzy [--read0] [--print0] [--] QUERY [K]");
+      Put_Line
+        (Standard_Error,
+         "       fuzzy --interactive [--read0] [--print0] [--] [QUERY]");
+      Put_Line
+        (Standard_Error,
+         "  one candidate per stdin record; candidates are read to end of"
+         & " input");
       Set_Exit_Status (Failure);
    end Usage;
 
-   procedure Overflow is
+   procedure Fail (Reason : String) is
    begin
-      Put_Line (Standard_Error, "input exceeds the representable buffer size");
+      Put_Line (Standard_Error, Reason);
       Set_Exit_Status (Failure);
-   end Overflow;
+   end Fail;
 
-   --  Next capacity, or zero when the current one cannot be doubled within
-   --  the representable index range.
-   function Doubled (Length : Positive) return Natural is
-     (if Length >= Natural'Last / 2 then
-        (if Length = Natural'Last then 0 else Natural'Last)
-      else Length * 2);
+   --  Options are the arguments beginning with two dashes; everything else is
+   --  positional. A lone "--" ends them, so a query that itself starts with a
+   --  dash stays reachable.
+   function Is_Option (Arg : String) return Boolean is
+     (Arg'Length >= 2 and then Arg (Arg'First .. Arg'First + 1) = "--");
 
-   procedure Grow_Text (Ok : out Boolean) is
-      Wanted : constant Natural := Doubled (Text'Length);
-      Bigger : Text_Buffer;
+   procedure Put_Candidate (Slice : Fuzzy.Text_Slice) is
+      Data : String renames Corpus.Text (1 .. Corpus.Used);
    begin
-      if Wanted = 0 then
-         Ok := False;
-         return;
+      if Slice.Length > 0 then
+         String'Write
+           (Output, Data (Slice.First .. Slice.First + (Slice.Length - 1)));
       end if;
-      Bigger := new String (1 .. Wanted);
-      Bigger (1 .. Used) := Text (1 .. Used);
-      Free (Text);
-      Text := Bigger;
-      Ok := True;
-   exception
-      when Storage_Error =>
-         Ok := False;
-   end Grow_Text;
+      Character'Write (Output, Write_Delimiter);
+   end Put_Candidate;
 
-   procedure Grow_Items (Ok : out Boolean) is
-      Wanted : constant Natural := Doubled (Items'Length);
-      Bigger : Candidate_Buffer;
-   begin
-      if Wanted = 0 then
-         Ok := False;
-         return;
-      end if;
-      Bigger := new Fuzzy.Candidate_Array (1 .. Wanted);
-      Bigger (1 .. Count) := Items (1 .. Count);
-      Free (Items);
-      Items := Bigger;
-      Ok := True;
-   exception
-      when Storage_Error =>
-         Ok := False;
-   end Grow_Items;
+   First_Positional : Positive := 1;
+   Positionals : Natural;
+   Ok : Boolean;
 begin
-   if Argument_Count not in 1 .. 2 then
+   while First_Positional <= Argument_Count
+     and then Is_Option (Argument (First_Positional))
+   loop
+      declare
+         Option : constant String := Argument (First_Positional);
+      begin
+         First_Positional := First_Positional + 1;
+         if Option = "--" then
+            exit;
+         elsif Option = "--read0" then
+            Read_Delimiter := Ada.Characters.Latin_1.NUL;
+         elsif Option = "--print0" then
+            Write_Delimiter := Ada.Characters.Latin_1.NUL;
+         elsif Option = "--interactive" then
+            Interactive := True;
+         else
+            Usage;
+            return;
+         end if;
+      end;
+   end loop;
+   Positionals := Argument_Count - First_Positional + 1;
+   --  Interactively the query is only a starting point and the display
+   --  bounds how many results are useful, so K has no meaning there.
+   if Positionals not in (if Interactive then 0 else 1) .. (if Interactive then 1 else 2)
+   then
       Usage;
       return;
    end if;
-   if Argument_Count = 2 then
+   if not Interactive and then Positionals = 2 then
       begin
-         Limit := Natural'Value (Argument (2));
+         Limit := Natural'Value (Argument (First_Positional + 1));
       exception
          when Constraint_Error =>
             Usage;
             return;
       end;
    end if;
-   while not End_Of_File loop
+
+   Fuzzy_Input.Read_Standard_Input (Corpus, Read_Delimiter, Ok);
+   if not Ok then
+      Fail ("input exceeds the representable buffer size");
+      return;
+   end if;
+
+   if Interactive then
       declare
-         Line : constant String := Get_Line;
-         Slice : Fuzzy.Text_Slice;
-         Ok : Boolean;
+         Query : constant String :=
+           (if Positionals = 1 then Argument (First_Positional) else "");
+         Chosen : Natural;
+         Status : Natural;
       begin
-         loop
-            Fuzzy.Corpus.Append (Text.all, Used, Line, Slice, Ok);
-            exit when Ok;
-            Grow_Text (Ok);
-            if not Ok then
-               Overflow;
-               return;
-            end if;
-         end loop;
-         if Count = Items'Length then
-            Grow_Items (Ok);
-            if not Ok then
-               Overflow;
-               return;
-            end if;
+         Fuzzy_Select.Run (Corpus, Query, Chosen, Status);
+         if Status = 2 then
+            Fail ("no usable terminal on /dev/tty");
+            return;
          end if;
-         Count := Count + 1;
-         Items (Count) := (Text => Slice);
+         if Chosen > 0 then
+            Put_Candidate (Corpus.Items (Chosen).Text);
+         end if;
+         Set_Exit_Status (Exit_Status (Status));
       end;
-   end loop;
+      return;
+   end if;
+
    declare
-      Data : String renames Text (1 .. Used);
-      Candidates : Fuzzy.Candidate_Array renames Items (1 .. Count);
-      Results : Fuzzy.Search_Result_Array (1 .. Natural'Min (Limit, Count));
+      Data : String renames Corpus.Text (1 .. Corpus.Used);
+      Candidates : Fuzzy.Candidate_Array renames
+        Corpus.Items (1 .. Corpus.Count);
+      Results : Fuzzy.Search_Result_Array
+        (1 .. Natural'Min (Limit, Corpus.Count));
       Found : Natural;
    begin
-      Fuzzy.Search (Argument (1), Data, Candidates, Results, Found);
+      Fuzzy.Search
+        (Argument (First_Positional), Data, Candidates, Results, Found);
       for R in 1 .. Found loop
-         declare
-            Slice : constant Fuzzy.Text_Slice :=
-              Candidates (Results (R).Candidate).Text;
-         begin
-            if Slice.Length = 0 then
-               New_Line;
-            else
-               Put_Line (Data (Slice.First .. Slice.First + (Slice.Length - 1)));
-            end if;
-         end;
+         Put_Candidate (Candidates (Results (R).Candidate).Text);
       end loop;
    end;
 end Fuzzy_CLI;
