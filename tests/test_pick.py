@@ -143,6 +143,22 @@ assert ESC + b"[32m" in screen, screen
 s.send(b"\x03")
 s.finish()
 
+# A control character inside a candidate must be shown, not executed: writing
+# one to a terminal in raw mode would move the cursor and break the layout.
+s = start()
+screen = s.send(b"gc")
+assert "↵".encode() in screen, screen
+assert b"a\nb" not in screen, screen
+s.send(b"\x03")
+s.finish()
+
+# An empty query keeps the input order, which is what makes the most recent
+# history entry come first rather than the shortest one.
+s = start()
+s.send(b"\r")
+code, out, _ = s.finish()
+assert (code, out) == (0, b"git status\n"), (code, out)
+
 # A termination signal must still hand the terminal back.
 s = start()
 os.kill(s.pid, signal.SIGTERM)
@@ -150,4 +166,4 @@ code, out, restored = s.finish()
 assert restored, "terminal mode not restored after SIGTERM"
 assert code == 143, code
 
-print("PASS: 12 interactive checks")
+print("PASS: 15 interactive checks")

@@ -52,7 +52,20 @@ package body Fuzzy_Select is
             Free (Results);
             Results := new Fuzzy.Search_Result_Array (1 .. Capacity);
          end if;
-         Fuzzy.Search (Query (1 .. Length), Data, Items, Results.all, Found);
+         if Length = 0 then
+            --  An empty pattern matches everything with a score of minus the
+            --  candidate length, so ranking it would order the corpus by
+            --  length. That is meaningless for a caller whose input already
+            --  carries an order, such as a history list running from the most
+            --  recent entry, so the input order is kept instead.
+            Found := Natural'Min (Capacity, Items'Length);
+            for Slot in 1 .. Found loop
+               Results (Slot) :=
+                 (Candidate => Items'First + (Slot - 1), Score => 0);
+            end loop;
+         else
+            Fuzzy.Search (Query (1 .. Length), Data, Items, Results.all, Found);
+         end if;
          Selected := Natural'Min (Natural'Max (Selected, 1), Found);
          Top := Positive'Min (Top, Positive'Max (Selected, 1));
          Stale := False;
@@ -79,12 +92,20 @@ package body Fuzzy_Select is
             declare
                Item : constant Character :=
                  Fuzzy.Character_At (Data, Slice, Offset);
+               --  A candidate may hold any byte, and writing a control
+               --  character to a terminal in raw mode would move the cursor
+               --  rather than print. Each stands in for exactly one byte, so
+               --  the highlight offsets still line up with what is shown.
+               Shape : constant String :=
+                 (if Item = Character'Val (10) then "↵"
+                  elsif Item < ' ' or else Item = Character'Val (127) then "·"
+                  else (1 => Item));
             begin
                if Next <= Marked and then Positions (Next) = Offset then
-                  Append (Frame, CSI & "32m" & Item & CSI & "39m");
+                  Append (Frame, CSI & "32m" & Shape & CSI & "39m");
                   Next := Next + 1;
                else
-                  Append (Frame, Item);
+                  Append (Frame, Shape);
                end if;
             end;
          end loop;

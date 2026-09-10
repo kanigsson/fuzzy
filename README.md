@@ -163,6 +163,26 @@ terminal size is re-read on each redraw, so a resize takes effect on the next
 keypress without a signal handler. There is no multi-selection yet, so the
 picker suits a history binding but not yet a multi-file one.
 
+## Shell integration
+
+`shell/fuzzy.bash` binds Ctrl-R to a history search. Source it from
+`~/.bashrc`, after any other tool that binds Ctrl-R, since the last binding
+wins:
+
+```sh
+source ~/tools/fuzzy_matcher/shell/fuzzy.bash
+```
+
+It lists the history newest first, collapses repeats, and separates entries
+with NUL so that an entry spanning several lines stays one candidate. The
+picker draws on the terminal, so the command substitution around it collects
+only the chosen entry, which then replaces the current command line. Aborting
+leaves the line untouched. Set `FUZZY_BIN` to point at a picker elsewhere.
+
+Note that a multi-line command is one history entry only while the session
+that typed it is alive; bash writes it to the history file as separate lines,
+and a later shell reads it back as separate entries.
+
 ## Verification scope
 
 GNATprove checks the entire library. All runtime safety, initialization, global
