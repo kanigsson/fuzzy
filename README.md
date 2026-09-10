@@ -208,7 +208,56 @@ independent full-sort oracle; they are not claimed as proved postconditions.
 The CLI, tests, and benchmark are ordinary Ada/Python outside the proof boundary.
 The usual SPARK precondition and sufficient stack/storage assumptions apply.
 
-See [VALIDATION.md](VALIDATION.md) for measured results and reproduction details.
+### Measured results
+
+Recorded on 2026-09-09 with FSF GNAT 16.1.0 and GNATprove FSF 16.1.0 as
+installed by Alire, using the CVC5 and Z3 provers bundled with that GNATprove,
+so the evidence rests on a toolchain anyone can obtain. The library sources have
+not changed since.
+
+**376/376 checks discharged; none unproved, none justified.** All 24 reported
+subprograms and packages in the two library units were analyzed.
+
+| Category | Checks |
+| --- | ---: |
+| Data dependencies | 11 |
+| Initialization | 20 |
+| Runtime safety | 194 |
+| Assertions and loop invariants | 51 |
+| Functional contracts | 73 |
+| Termination | 27 |
+
+Both the release and assertion-enabled builds pass 155,658 Ada checks, 30 CLI
+checks, and 15 interactive checks; the assertion-enabled build executes ghost
+code and contracts. The Ada tests exhaust candidate strings of length 0–4 and
+patterns of length 0–3 over `aB/_`, comparing matching against an independent
+existential oracle and scoring against an independent implementation, and
+compare search against full selection sorting across all 85 patterns and
+capacities 0–10. Corpus packing replays every sequence of up to three items
+into buffers of capacity 0 through 8. The CLI tests cover both framings, buffer
+growth, and argument errors; the interactive tests drive the picker through a
+real pty, with standard input, standard output and the terminal as three
+separate channels, and check that the terminal mode is restored even on a
+termination signal.
+
+Each benchmark row uses 100,000 generated 50-byte paths, K=30, and 20 full
+searches per process, three processes run sequentially. Input construction and
+output are outside the timed region, and checksums agreed across all repeats.
+These are local synthetic measurements, not cross-machine guarantees.
+
+| Query | Workload | Median ms/search |
+| --- | --- | ---: |
+| `fma` | Every candidate matches | 6.5 |
+| `999` | Selective numeric subsequence | 8.1 |
+| `zzz` | No matches | 9.0 |
+| empty | All candidates, length/index ranking | 0.44 |
+
+Reproduce with `make prove`, `make test`, and `make test-contracts`.
+`scripts/validate.py` runs everything and records resolved tool paths and
+versions, source hashes, commands, exit statuses, proof reports, test logs, and
+benchmark samples under `validation/`. That directory is untracked, because it
+describes one machine's run rather than the project.
+
 Incremental filtering, Unicode matching, and alternative alignment/scoring
 policies are deferred.
 

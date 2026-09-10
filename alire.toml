@@ -24,7 +24,8 @@ implementation to a recursive earliest-occurrence subsequence model. The `fuzzy`
 CLI, the tests, and the benchmark are ordinary Ada/Python outside the proof
 boundary and are not built by `alr build`.
 
-See `README.md` for the scoring rules and `VALIDATION.md` for measured results.
+See `README.md` for the scoring rules and the measured proof, test, and
+benchmark results.
 """
 
 [[depends-on]]
