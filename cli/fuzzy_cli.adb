@@ -17,6 +17,7 @@ procedure Fuzzy_CLI is
    Read_Delimiter : Character := Ada.Characters.Latin_1.LF;
    Write_Delimiter : Character := Ada.Characters.Latin_1.LF;
    Interactive : Boolean := False;
+   Multi : Boolean := False;
 
    Corpus : Fuzzy_Input.Corpus;
    Limit : Natural := 30;
@@ -28,7 +29,8 @@ procedure Fuzzy_CLI is
          "usage: fuzzy [--read0] [--print0] [--] QUERY [K]");
       Put_Line
         (Standard_Error,
-         "       fuzzy --interactive [--read0] [--print0] [--] [QUERY]");
+         "       fuzzy --interactive [--multi] [--read0] [--print0] [--]"
+         & " [QUERY]");
       Put_Line
         (Standard_Error,
          "  one candidate per stdin record; candidates are read to end of"
@@ -58,6 +60,8 @@ procedure Fuzzy_CLI is
       Character'Write (Output, Write_Delimiter);
    end Put_Candidate;
 
+   type Mark_Buffer is access Fuzzy_Select.Mark_Array;
+
    First_Positional : Positive := 1;
    Positionals : Natural;
    Ok : Boolean;
@@ -77,6 +81,8 @@ begin
             Write_Delimiter := Ada.Characters.Latin_1.NUL;
          elsif Option = "--interactive" then
             Interactive := True;
+         elsif Option = "--multi" then
+            Multi := True;
          else
             Usage;
             return;
@@ -111,15 +117,27 @@ begin
       declare
          Query : constant String :=
            (if Positionals = 1 then Argument (First_Positional) else "");
+         --  One flag per candidate, which the corpus may well have many of.
+         Marks : constant Mark_Buffer :=
+           new Fuzzy_Select.Mark_Array (1 .. Corpus.Count);
          Chosen : Natural;
          Status : Natural;
+         Any_Marked : Boolean := False;
       begin
-         Fuzzy_Select.Run (Corpus, Query, Chosen, Status);
+         Fuzzy_Select.Run (Corpus, Query, Multi, Chosen, Marks.all, Status);
          if Status = 2 then
             Fail ("no usable terminal on /dev/tty");
             return;
          end if;
-         if Chosen > 0 then
+         --  Marking anything replaces the candidate under the cursor, which
+         --  is what makes Tab additive rather than a second way to accept.
+         for Which in Marks'Range loop
+            if Marks (Which) then
+               Any_Marked := True;
+               Put_Candidate (Corpus.Items (Which).Text);
+            end if;
+         end loop;
+         if not Any_Marked and then Chosen > 0 then
             Put_Candidate (Corpus.Items (Chosen).Text);
          end if;
          Set_Exit_Status (Exit_Status (Status));

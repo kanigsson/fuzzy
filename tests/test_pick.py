@@ -166,4 +166,48 @@ code, out, restored = s.finish()
 assert restored, "terminal mode not restored after SIGTERM"
 assert code == 143, code
 
-print("PASS: 15 interactive checks")
+# Multi-selection. Tab marks the candidate under the cursor and steps down, so
+# marking is additive rather than a second way to accept.
+s = Session(["--interactive", "--multi", "--read0"], HISTORY)
+s.settle()
+s.send(b"git")
+screen = s.send(b"\t")            # mark the first, move to the second
+assert b"(1)" in screen, screen
+s.send(b"\t")                     # mark the second too
+s.send(b"\r")
+code, out, _ = s.finish()
+assert (code, out) == (0, b"git status\ngit commit -m 'a\nb'\n"), (code, out)
+
+# Marks survive a change of query, because they belong to candidates rather
+# than to the slots a search happened to return.
+s = Session(["--interactive", "--multi", "--read0"], HISTORY)
+s.settle()
+s.send(b"ls")
+s.send(b"\t")
+s.send(b"\x15")                   # clear the query
+screen = s.send(b"gnat")
+assert b"(1)" in screen, screen
+s.send(b"\r")
+code, out, _ = s.finish()
+assert (code, out) == (0, b"ls -la\n"), (code, out)
+
+# Tab toggles: marking and unmarking leaves the cursor candidate to be taken.
+s = Session(["--interactive", "--multi", "--read0"], HISTORY)
+s.settle()
+s.send(b"ls")
+s.send(b"\t")
+s.send(b"\x1b[Z")                 # shift-tab unmarks and steps back
+s.send(b"\r")
+code, out, _ = s.finish()
+assert (code, out) == (0, b"ls -la\n"), (code, out)
+
+# Without --multi the mark key does nothing but move.
+s = start()
+s.send(b"git")
+screen = s.send(b"\t")
+assert b"(1)" not in screen, screen
+s.send(b"\r")
+code, out, _ = s.finish()
+assert (code, out) == (0, b"git commit -m 'a\nb'\n"), (code, out)
+
+print("PASS: 19 interactive checks")

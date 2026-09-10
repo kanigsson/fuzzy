@@ -1,7 +1,10 @@
-# Bash integration for the fuzzy picker: Ctrl-R searches the shell history.
+# Bash integration for the fuzzy picker: Ctrl-R searches the shell history,
+# Ctrl-T inserts paths from the tree below the current directory.
 #
-# Source this from ~/.bashrc, after any other tool that binds Ctrl-R, since
-# the last binding wins. Set FUZZY_BIN to override the picker location.
+# Source this from ~/.bashrc, after any other tool that binds those keys, since
+# the last binding wins. Set FUZZY_BIN to override the picker location, and
+# FUZZY_CTRL_T_COMMAND to list candidate paths some other way; it must separate
+# them with NUL.
 
 if [[ $- =~ i ]]; then
 
@@ -40,9 +43,46 @@ __fuzzy_history__() {
   READLINE_POINT=0x7fffffff
 }
 
+# Everything below the current directory, with the directories nobody wants to
+# search pruned away. Separated by NUL, so a path holding a newline stays one
+# candidate. Symbolic links are followed, matching what fzf walks by default.
+__fuzzy_walk() {
+  command find -L . -mindepth 1 \
+    \( -name .git -o -name node_modules -o -name .svn \) -prune -o \
+    -printf '%P\0' 2> /dev/null
+}
+
+__fuzzy_file_widget() {
+  local -a picked=()
+  local item quoted
+  # A path may hold a newline, so the picker reports the choices separated by
+  # NUL and they are read one record at a time. Bash cannot hold a NUL in a
+  # variable, which is why this is not a command substitution; an abort prints
+  # nothing, so an empty result stands in for the exit status.
+  while IFS= read -r -d '' item; do
+    picked+=("$item")
+  done < <(
+    set +o pipefail
+    if [[ -n ${FUZZY_CTRL_T_COMMAND-} ]]; then
+      eval "$FUZZY_CTRL_T_COMMAND"
+    else
+      __fuzzy_walk
+    fi | "$__fuzzy_bin" --interactive --multi --read0 --print0
+  )
+  ((${#picked[@]})) || return
+  printf -v quoted '%q ' "${picked[@]}"
+  quoted=${quoted% }
+  READLINE_LINE="${READLINE_LINE:0:READLINE_POINT}$quoted${READLINE_LINE:READLINE_POINT}"
+  READLINE_POINT=$((READLINE_POINT + ${#quoted}))
+}
+
 bind -m emacs-standard -x '"\C-r": __fuzzy_history__'
 bind -m vi-command -x '"\C-r": __fuzzy_history__'
 bind -m vi-insert -x '"\C-r": __fuzzy_history__'
+
+bind -m emacs-standard -x '"\C-t": __fuzzy_file_widget'
+bind -m vi-command -x '"\C-t": __fuzzy_file_widget'
+bind -m vi-insert -x '"\C-t": __fuzzy_file_widget'
 
 fi
 

@@ -18,7 +18,8 @@ package Fuzzy_Term is
 
    type Key_Kind is
      (Char, Enter, Accept_Abort, Backspace, Delete_Forward, Delete_Word,
-      Clear_Line, Up, Down, Left, Right, Line_Start, Line_End, Ignored);
+      Clear_Line, Up, Down, Left, Right, Line_Start, Line_End, Mark_Down,
+      Mark_Up, Ignored);
 
    type Key is record
       Kind : Key_Kind := Ignored;

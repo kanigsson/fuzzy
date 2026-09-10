@@ -160,6 +160,7 @@ package body Fuzzy_Term is
          when Character'Val (4) => (Delete_Forward, ' '),
          when Character'Val (5) => (Line_End, ' '),
          when Character'Val (8) => (Backspace, ' '),
+         when Character'Val (9) => (Mark_Down, ' '),
          when Character'Val (10) => (Down, ' '),
          when Character'Val (11) => (Up, ' '),
          when Character'Val (13) => (Enter, ' '),
@@ -207,6 +208,7 @@ package body Fuzzy_Term is
                when 'C' => Emit ((Right, ' '));
                when 'D' => Emit ((Left, ' '));
                when 'H' => Emit ((Line_Start, ' '));
+               when 'Z' => Emit ((Mark_Up, ' '));
                when 'F' => Emit ((Line_End, ' '));
                when '3' => Emit ((Delete_Forward, ' '));
                when others => Emit ((Ignored, ' '));

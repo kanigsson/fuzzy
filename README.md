@@ -151,7 +151,11 @@ not accepted, because the display bounds how many results are useful.
 Keys follow fzf where they overlap: characters edit the query, `Ctrl-U` clears
 it, `Ctrl-W` deletes a word, `Ctrl-A`/`Ctrl-E`/arrows move within it,
 `Up`/`Down`/`Ctrl-P`/`Ctrl-N`/`Ctrl-K`/`Ctrl-J` move the selection, `Enter`
-accepts, and `Esc` or `Ctrl-C` aborts. The exit status is 0 when a candidate
+accepts, and `Esc` or `Ctrl-C` aborts. With `--multi`, `Tab` and `Shift-Tab`
+mark the candidate under the cursor and step on; accepting then reports every
+marked candidate in corpus order instead of the one under the cursor. Marks
+belong to candidates rather than to result rows, so they survive a change of
+query. The exit status is 0 when a candidate
 was accepted, 1 when nothing matched, 2 when there is no usable terminal, and
 130 on abort. The terminal mode is restored on every exit path, including
 `SIGTERM` and `SIGHUP`.
@@ -160,14 +164,13 @@ The picker asks the matcher for one screenful of results and doubles that
 bound only when the selection actually reaches the end of what came back, so
 scrolling is unbounded without paying for a large K on every keystroke. The
 terminal size is re-read on each redraw, so a resize takes effect on the next
-keypress without a signal handler. There is no multi-selection yet, so the
-picker suits a history binding but not yet a multi-file one.
+keypress without a signal handler.
 
 ## Shell integration
 
-`shell/fuzzy.bash` binds Ctrl-R to a history search. Source it from
-`~/.bashrc`, after any other tool that binds Ctrl-R, since the last binding
-wins:
+`shell/fuzzy.bash` binds Ctrl-R to a history search and Ctrl-T to a path
+search. Source it from `~/.bashrc`, after any other tool that binds those keys,
+since the last binding wins:
 
 ```sh
 source ~/tools/fuzzy_matcher/shell/fuzzy.bash
@@ -182,6 +185,12 @@ leaves the line untouched. Set `FUZZY_BIN` to point at a picker elsewhere.
 Note that a multi-line command is one history entry only while the session
 that typed it is alive; bash writes it to the history file as separate lines,
 and a later shell reads it back as separate entries.
+
+Ctrl-T lists the tree below the current directory, following symbolic links and
+pruning `.git`, `node_modules` and `.svn`, and splices the marked paths into the
+command line at the cursor, each quoted for the shell. `Tab` marks more than
+one. Set `FUZZY_CTRL_T_COMMAND` to list candidate paths some other way; it must
+separate them with NUL.
 
 ## Verification scope
 

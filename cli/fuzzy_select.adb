@@ -25,7 +25,9 @@ package body Fuzzy_Select is
    procedure Run
      (Corpus        : Fuzzy_Input.Corpus;
       Initial_Query : String;
+      Multi         : Boolean;
       Chosen        : out Natural;
+      Marks         : out Mark_Array;
       Status        : out Natural)
    is
       Data : String renames Corpus.Text (1 .. Corpus.Used);
@@ -45,6 +47,7 @@ package body Fuzzy_Select is
       Selected : Natural := 0;
       Top : Positive := 1;
       Stale : Boolean := True;
+      Marked_Count : Natural := 0;
 
       procedure Refresh is
       begin
@@ -135,17 +138,25 @@ package body Fuzzy_Select is
             CSI & "90m  " & Image (Found)
             & (if Found = Capacity and then Found < Corpus.Count
                then "+" else "")
-            & "/" & Image (Corpus.Count) & CSI & "39m" & New_Row);
+            & "/" & Image (Corpus.Count)
+            & (if Marked_Count > 0 then " (" & Image (Marked_Count) & ")"
+               else "")
+            & CSI & "39m" & New_Row);
          Last := Natural'Min (Found, Top + (List_Rows - 1));
          for Slot in Top .. Last loop
-            if Slot = Selected then
-               Append (Frame, CSI & "1m> ");
-               Put_Candidate (Frame, Slot, Width);
-               Append (Frame, CSI & "0m");
-            else
-               Append (Frame, "  ");
-               Put_Candidate (Frame, Slot, Width);
-            end if;
+            declare
+               Mark : constant String :=
+                 (if Marks (Results (Slot).Candidate) then "+" else " ");
+            begin
+               if Slot = Selected then
+                  Append (Frame, CSI & "1m>" & Mark);
+                  Put_Candidate (Frame, Slot, Width);
+                  Append (Frame, CSI & "0m");
+               else
+                  Append (Frame, " " & Mark);
+                  Put_Candidate (Frame, Slot, Width);
+               end if;
+            end;
             Append (Frame, New_Row);
          end loop;
          --  Leave the cursor where the caret belongs, on the query line.
@@ -187,6 +198,20 @@ package body Fuzzy_Select is
          end loop;
       end Delete_Word;
 
+      --  Marks belong to candidates rather than to result slots, so they
+      --  survive a change of query that reorders or hides them.
+      procedure Toggle is
+         Which : Positive;
+      begin
+         if not Multi or else Selected = 0 then
+            return;
+         end if;
+         Which := Results (Selected).Candidate;
+         Marks (Which) := not Marks (Which);
+         Marked_Count :=
+           (if Marks (Which) then Marked_Count + 1 else Marked_Count - 1);
+      end Toggle;
+
       procedure Move_Down is
       begin
          if Selected < Found then
@@ -211,6 +236,7 @@ package body Fuzzy_Select is
    begin
       Chosen := 0;
       Status := 130;
+      Marks := (others => False);
       if Initial_Query'Length > 0 then
          Length := Natural'Min (Initial_Query'Length, Query'Length);
          Query (1 .. Length) :=
@@ -278,6 +304,14 @@ package body Fuzzy_Select is
                   end if;
                when Fuzzy_Term.Down =>
                   Move_Down;
+               when Fuzzy_Term.Mark_Down =>
+                  Toggle;
+                  Move_Down;
+               when Fuzzy_Term.Mark_Up =>
+                  Toggle;
+                  if Selected > 1 then
+                     Selected := Selected - 1;
+                  end if;
                when Fuzzy_Term.Enter =>
                   if Selected > 0 then
                      Chosen := Results (Selected).Candidate;
