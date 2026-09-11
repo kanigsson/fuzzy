@@ -14,10 +14,25 @@ make test-contracts      # also execute contracts and ghost assertions
 make flow                # initialization and dependency analysis
 make prove               # runtime safety and functional contracts
 make benchmark           # 100,000 synthetic paths, K=30, 20 searches
+make format              # reformat the Ada sources with GNATformat
 printf '%s\n' src/foo.adb src/bar.ads | bin/fuzzy fa 30
 ```
 
-`GPRBUILD`, `GNATPROVE`, and `JOBS` can be overridden for a selected toolchain.
+`GPRBUILD`, `GNATPROVE`, `GNATFORMAT`, and `JOBS` can be overridden for a
+selected toolchain. The repository deliberately records no tool paths: on a
+machine that offers several toolchains, put the choice in a `local.mk`,
+which the `Makefile` includes if present and which stays untracked. For
+example, to use the FSF tools installed through Alire with `alr install`:
+
+```make
+GNATPROVE  ?= $(HOME)/.alire/bin/gnatprove
+GNATFORMAT ?= $(HOME)/.alire/bin/gnatformat
+```
+
+The compiler and GPRbuild are selected separately, because Alire manages
+them as a toolchain rather than as installed binaries: run
+`alr toolchain --select --local` once to record the choice for this
+workspace alone, then invoke the targets as `alr exec -- make prove`.
 `fuzzy.gpr` builds a reusable static library; client projects import it with
 `with "fuzzy.gpr";`. The library is also an Alire crate, so a client can instead
 depend on it with `alr with fuzzy`; `alr build` builds the library alone, while

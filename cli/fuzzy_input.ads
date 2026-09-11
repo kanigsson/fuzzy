@@ -3,6 +3,7 @@ with Fuzzy;
 --  Standard input adapter for the CLI, outside the proof boundary. The
 --  library never allocates; corpus storage lives here because standard input
 --  has no size known in advance.
+
 package Fuzzy_Input is
 
    type Text_Buffer is access String;

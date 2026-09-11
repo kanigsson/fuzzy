@@ -1,8 +1,13 @@
-package body Fuzzy.Corpus with SPARK_Mode is
+package body Fuzzy.Corpus
+  with SPARK_Mode
+is
 
    procedure Append
-     (Buffer : in out String; Used : in out Natural; Item : String;
-      Slice : out Text_Slice; Ok : out Boolean)
+     (Buffer : in out String;
+      Used   : in out Natural;
+      Item   : String;
+      Slice  : out Text_Slice;
+      Ok     : out Boolean)
    is
       Start : Positive;
    begin

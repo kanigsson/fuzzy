@@ -1,6 +1,7 @@
 with Fuzzy_Input;
 
 --  The interactive picker, outside the proof boundary.
+
 package Fuzzy_Select is
 
    type Mark_Array is array (Positive range <>) of Boolean;

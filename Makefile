@@ -1,8 +1,14 @@
+#  Optional, untracked, per-developer tool locations. The project states
+#  which tools it needs and never where they live; a developer whose
+#  environment offers several toolchains pins the choice here.
+-include local.mk
+
 GPRBUILD ?= gprbuild
 GNATPROVE ?= gnatprove
+GNATFORMAT ?= gnatformat
 JOBS ?= 4
 
-.PHONY: all test test-contracts prove flow benchmark
+.PHONY: all test test-contracts prove flow benchmark format
 all:
 	$(GPRBUILD) -P tools.gpr -j$(JOBS)
 
@@ -25,3 +31,8 @@ prove:
 
 benchmark: all
 	bin/bench_fuzzy
+
+#  Some sources hold UTF-8 literals, so the charset must be stated: the
+#  formatter otherwise assumes iso-8859-1 and re-encodes them on every run.
+format:
+	$(GNATFORMAT) -P tools.gpr -U --charset utf-8

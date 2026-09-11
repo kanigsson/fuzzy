@@ -3,6 +3,7 @@
 --  Standard input carries the candidate stream, so keys are read from the
 --  terminal device itself and the display is written there too. Standard
 --  output stays free to carry the result, which may well be a pipe.
+
 package Fuzzy_Term is
 
    --  Enter raw mode and the alternate screen. Ok is False when there is no
@@ -17,9 +18,22 @@ package Fuzzy_Term is
    function Standard_Input_Is_Terminal return Boolean;
 
    type Key_Kind is
-     (Char, Enter, Accept_Abort, Backspace, Delete_Forward, Delete_Word,
-      Clear_Line, Up, Down, Left, Right, Line_Start, Line_End, Mark_Down,
-      Mark_Up, Ignored);
+     (Char,
+      Enter,
+      Accept_Abort,
+      Backspace,
+      Delete_Forward,
+      Delete_Word,
+      Clear_Line,
+      Up,
+      Down,
+      Left,
+      Right,
+      Line_Start,
+      Line_End,
+      Mark_Down,
+      Mark_Up,
+      Ignored);
 
    type Key is record
       Kind : Key_Kind := Ignored;

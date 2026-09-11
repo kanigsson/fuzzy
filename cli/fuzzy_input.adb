@@ -6,15 +6,15 @@ with Fuzzy.Corpus;
 package body Fuzzy_Input is
 
    procedure Free is new Ada.Unchecked_Deallocation (String, Text_Buffer);
-   procedure Free is
-     new Ada.Unchecked_Deallocation (Fuzzy.Candidate_Array, Candidate_Buffer);
+   procedure Free is new
+     Ada.Unchecked_Deallocation (Fuzzy.Candidate_Array, Candidate_Buffer);
 
    --  Next capacity, or zero when the current one cannot be doubled within
    --  the representable index range.
-   function Doubled (Length : Positive) return Natural is
-     (if Length >= Natural'Last / 2 then
-        (if Length = Natural'Last then 0 else Natural'Last)
-      else Length * 2);
+   function Doubled (Length : Positive) return Natural
+   is (if Length >= Natural'Last / 2
+       then (if Length = Natural'Last then 0 else Natural'Last)
+       else Length * 2);
 
    procedure Read_Standard_Input
      (Self : in out Corpus; Delimiter : Character; Ok : out Boolean)
@@ -29,7 +29,7 @@ package body Fuzzy_Input is
 
       --  A record may span several reads of the input, so it is accumulated
       --  here instead of being a slice of the block just read.
-      Pending : Text_Buffer := new String (1 .. 4 * 1024);
+      Pending      : Text_Buffer := new String (1 .. 4 * 1024);
       Pending_Used : Natural := 0;
 
       procedure Grow_Text (Ok : out Boolean) is
@@ -105,8 +105,11 @@ package body Fuzzy_Input is
       begin
          loop
             Fuzzy.Corpus.Append
-              (Self.Text.all, Self.Used, Pending (1 .. Pending_Used),
-               Slice, Ok);
+              (Self.Text.all,
+               Self.Used,
+               Pending (1 .. Pending_Used),
+               Slice,
+               Ok);
             exit when Ok;
             Grow_Text (Ok);
             if not Ok then
@@ -126,7 +129,7 @@ package body Fuzzy_Input is
       end Emit_Record;
 
       Block : Ada.Streams.Stream_Element_Array (1 .. 64 * 1024);
-      Last : Ada.Streams.Stream_Element_Offset;
+      Last  : Ada.Streams.Stream_Element_Offset;
    begin
       if Self.Text = null then
          Self.Text := new String (1 .. 64 * 1024);

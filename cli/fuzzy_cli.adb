@@ -14,19 +14,18 @@ procedure Fuzzy_CLI is
 
    --  Input and output framing are chosen independently, matching the way the
    --  shell integration asks for them.
-   Read_Delimiter : Character := Ada.Characters.Latin_1.LF;
+   Read_Delimiter  : Character := Ada.Characters.Latin_1.LF;
    Write_Delimiter : Character := Ada.Characters.Latin_1.LF;
-   Interactive : Boolean := False;
-   Multi : Boolean := False;
+   Interactive     : Boolean := False;
+   Multi           : Boolean := False;
 
    Corpus : Fuzzy_Input.Corpus;
-   Limit : Natural := 30;
+   Limit  : Natural := 30;
 
    procedure Usage is
    begin
       Put_Line
-        (Standard_Error,
-         "usage: fuzzy [--read0] [--print0] [--] QUERY [K]");
+        (Standard_Error, "usage: fuzzy [--read0] [--print0] [--] QUERY [K]");
       Put_Line
         (Standard_Error,
          "       fuzzy --interactive [--multi] [--read0] [--print0] [--]"
@@ -47,8 +46,8 @@ procedure Fuzzy_CLI is
    --  Options are the arguments beginning with two dashes; everything else is
    --  positional. A lone "--" ends them, so a query that itself starts with a
    --  dash stays reachable.
-   function Is_Option (Arg : String) return Boolean is
-     (Arg'Length >= 2 and then Arg (Arg'First .. Arg'First + 1) = "--");
+   function Is_Option (Arg : String) return Boolean
+   is (Arg'Length >= 2 and then Arg (Arg'First .. Arg'First + 1) = "--");
 
    procedure Put_Candidate (Slice : Fuzzy.Text_Slice) is
       Data : String renames Corpus.Text (1 .. Corpus.Used);
@@ -63,8 +62,8 @@ procedure Fuzzy_CLI is
    type Mark_Buffer is access Fuzzy_Select.Mark_Array;
 
    First_Positional : Positive := 1;
-   Positionals : Natural;
-   Ok : Boolean;
+   Positionals      : Natural;
+   Ok               : Boolean;
 begin
    while First_Positional <= Argument_Count
      and then Is_Option (Argument (First_Positional))
@@ -92,7 +91,8 @@ begin
    Positionals := Argument_Count - First_Positional + 1;
    --  Interactively the query is only a starting point and the display
    --  bounds how many results are useful, so K has no meaning there.
-   if Positionals not in (if Interactive then 0 else 1) .. (if Interactive then 1 else 2)
+   if Positionals
+      not in (if Interactive then 0 else 1) .. (if Interactive then 1 else 2)
    then
       Usage;
       return;
@@ -115,13 +115,13 @@ begin
 
    if Interactive then
       declare
-         Query : constant String :=
+         Query      : constant String :=
            (if Positionals = 1 then Argument (First_Positional) else "");
          --  One flag per candidate, which the corpus may well have many of.
-         Marks : constant Mark_Buffer :=
+         Marks      : constant Mark_Buffer :=
            new Fuzzy_Select.Mark_Array (1 .. Corpus.Count);
-         Chosen : Natural;
-         Status : Natural;
+         Chosen     : Natural;
+         Status     : Natural;
          Any_Marked : Boolean := False;
       begin
          Fuzzy_Select.Run (Corpus, Query, Multi, Chosen, Marks.all, Status);
@@ -146,12 +146,12 @@ begin
    end if;
 
    declare
-      Data : String renames Corpus.Text (1 .. Corpus.Used);
+      Data       : String renames Corpus.Text (1 .. Corpus.Used);
       Candidates : Fuzzy.Candidate_Array renames
         Corpus.Items (1 .. Corpus.Count);
-      Results : Fuzzy.Search_Result_Array
-        (1 .. Natural'Min (Limit, Corpus.Count));
-      Found : Natural;
+      Results    :
+        Fuzzy.Search_Result_Array (1 .. Natural'Min (Limit, Corpus.Count));
+      Found      : Natural;
    begin
       Fuzzy.Search
         (Argument (First_Positional), Data, Candidates, Results, Found);

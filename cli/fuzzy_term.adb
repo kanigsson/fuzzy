@@ -4,29 +4,30 @@ with System;
 package body Fuzzy_Term is
    use Interfaces.C;
 
-   O_RDWR : constant int := 2;
-   TCSANOW : constant int := 0;
+   O_RDWR     : constant int := 2;
+   TCSANOW    : constant int := 0;
    TIOCGWINSZ : constant unsigned_long := 16#5413#;
-   SIGHUP : constant int := 1;
-   SIGTERM : constant int := 15;
+   SIGHUP     : constant int := 1;
+   SIGTERM    : constant int := 15;
 
-   ESC : constant Character := Character'Val (27);
+   ESC          : constant Character := Character'Val (27);
    Enter_Screen : constant String := ESC & "[?1049h";
    Leave_Screen : constant String := ESC & "[?25h" & ESC & "[?1049l";
 
    function C_Open (Path : char_array; Flags : int) return int
-     with Import, Convention => C, External_Name => "open";
+   with Import, Convention => C, External_Name => "open";
    function C_Close (FD : int) return int
-     with Import, Convention => C, External_Name => "close";
+   with Import, Convention => C, External_Name => "close";
    function C_Read (FD : int; Buf : System.Address; Bytes : size_t) return long
-     with Import, Convention => C, External_Name => "read";
-   function C_Write (FD : int; Buf : System.Address; Bytes : size_t) return long
-     with Import, Convention => C, External_Name => "write";
+   with Import, Convention => C, External_Name => "read";
+   function C_Write
+     (FD : int; Buf : System.Address; Bytes : size_t) return long
+   with Import, Convention => C, External_Name => "write";
    function C_Isatty (FD : int) return int
-     with Import, Convention => C, External_Name => "isatty";
+   with Import, Convention => C, External_Name => "isatty";
    function C_Ioctl
      (FD : int; Request : unsigned_long; Arg : System.Address) return int
-     with Import, Convention => C, External_Name => "ioctl";
+   with Import, Convention => C, External_Name => "ioctl";
 
    --  The terminal mode is handled as an opaque block: only its size and
    --  alignment matter here, because the C library supplies both the query
@@ -35,24 +36,25 @@ package body Fuzzy_Term is
    type Mode_Block is array (1 .. 32) of aliased unsigned;
 
    function C_Tcgetattr (FD : int; Mode : System.Address) return int
-     with Import, Convention => C, External_Name => "tcgetattr";
+   with Import, Convention => C, External_Name => "tcgetattr";
    function C_Tcsetattr
      (FD : int; Actions : int; Mode : System.Address) return int
-     with Import, Convention => C, External_Name => "tcsetattr";
+   with Import, Convention => C, External_Name => "tcsetattr";
    procedure C_Cfmakeraw (Mode : System.Address)
-     with Import, Convention => C, External_Name => "cfmakeraw";
+   with Import, Convention => C, External_Name => "cfmakeraw";
    procedure C_Exit (Status : int)
-     with Import, Convention => C, External_Name => "_exit", No_Return;
+   with Import, Convention => C, External_Name => "_exit", No_Return;
    function C_Signal
      (Sig : int; Handler : System.Address) return System.Address
-     with Import, Convention => C, External_Name => "signal";
+   with Import, Convention => C, External_Name => "signal";
 
    type Win_Size is record
       Rows, Cols, X_Pixels, Y_Pixels : unsigned_short;
-   end record with Convention => C;
+   end record
+   with Convention => C;
 
-   FD : int := -1;
-   Saved : aliased Mode_Block;
+   FD         : int := -1;
+   Saved      : aliased Mode_Block;
    Raw_Active : Boolean := False;
 
    procedure Write (Item : String) is
@@ -63,8 +65,11 @@ package body Fuzzy_Term is
          return;
       end if;
       while Done < Item'Length loop
-         Sent := C_Write
-           (FD, Item (Item'First + Done)'Address, size_t (Item'Length - Done));
+         Sent :=
+           C_Write
+             (FD,
+              Item (Item'First + Done)'Address,
+              size_t (Item'Length - Done));
          exit when Sent <= 0;
          Done := Done + Natural (Sent);
       end loop;
@@ -83,7 +88,8 @@ package body Fuzzy_Term is
    --  Termination signals would otherwise leave the terminal in raw mode.
    --  Restoring it and leaving immediately is all that may safely be
    --  attempted from here.
-   procedure On_Signal (Sig : int) with Convention => C;
+   procedure On_Signal (Sig : int)
+   with Convention => C;
 
    procedure On_Signal (Sig : int) is
    begin
@@ -92,8 +98,8 @@ package body Fuzzy_Term is
    end On_Signal;
 
    procedure Open (Ok : out Boolean) is
-      Work : aliased Mode_Block;
-      Ignored : int;
+      Work            : aliased Mode_Block;
+      Ignored         : int;
       Ignored_Handler : System.Address;
    begin
       Ok := FD >= 0;
@@ -134,7 +140,8 @@ package body Fuzzy_Term is
       FD := -1;
    end Close;
 
-   function Standard_Input_Is_Terminal return Boolean is (C_Isatty (0) = 1);
+   function Standard_Input_Is_Terminal return Boolean
+   is (C_Isatty (0) = 1);
 
    procedure Size (Rows, Cols : out Positive) is
       Window : aliased Win_Size := (others => 0);
@@ -153,32 +160,32 @@ package body Fuzzy_Term is
 
    --  Control characters follow the bindings the same keys have in fzf, so
    --  that muscle memory carries over.
-   function Control_Key (Item : Character) return Key is
-     (case Item is
-         when Character'Val (1) => (Line_Start, ' '),
-         when Character'Val (3) => (Accept_Abort, ' '),
-         when Character'Val (4) => (Delete_Forward, ' '),
-         when Character'Val (5) => (Line_End, ' '),
-         when Character'Val (8) => (Backspace, ' '),
-         when Character'Val (9) => (Mark_Down, ' '),
-         when Character'Val (10) => (Down, ' '),
-         when Character'Val (11) => (Up, ' '),
-         when Character'Val (13) => (Enter, ' '),
-         when Character'Val (14) => (Down, ' '),
-         when Character'Val (16) => (Up, ' '),
-         when Character'Val (21) => (Clear_Line, ' '),
-         when Character'Val (23) => (Delete_Word, ' '),
+   function Control_Key (Item : Character) return Key
+   is (case Item is
+         when Character'Val (1)   => (Line_Start, ' '),
+         when Character'Val (3)   => (Accept_Abort, ' '),
+         when Character'Val (4)   => (Delete_Forward, ' '),
+         when Character'Val (5)   => (Line_End, ' '),
+         when Character'Val (8)   => (Backspace, ' '),
+         when Character'Val (9)   => (Mark_Down, ' '),
+         when Character'Val (10)  => (Down, ' '),
+         when Character'Val (11)  => (Up, ' '),
+         when Character'Val (13)  => (Enter, ' '),
+         when Character'Val (14)  => (Down, ' '),
+         when Character'Val (16)  => (Up, ' '),
+         when Character'Val (21)  => (Clear_Line, ' '),
+         when Character'Val (23)  => (Delete_Word, ' '),
          when Character'Val (127) => (Backspace, ' '),
-         when others => (Ignored, ' '));
+         when others              => (Ignored, ' '));
 
    procedure Read_Keys (Keys : out Key_Array; Count : out Natural) is
-      Block : array (1 .. 128) of aliased unsigned_char;
+      Block      : array (1 .. 128) of aliased unsigned_char;
       Read_Bytes : long;
-      Available : Natural;
-      At_Byte : Natural := 1;
+      Available  : Natural;
+      At_Byte    : Natural := 1;
 
-      function Item (Offset : Natural) return Character is
-        (Character'Val (Block (Offset)));
+      function Item (Offset : Natural) return Character
+      is (Character'Val (Block (Offset)));
 
       procedure Emit (Found : Key) is
       begin
@@ -203,15 +210,32 @@ package body Fuzzy_Term is
            and then (Item (At_Byte + 1) = '[' or else Item (At_Byte + 1) = 'O')
          then
             case Item (At_Byte + 2) is
-               when 'A' => Emit ((Up, ' '));
-               when 'B' => Emit ((Down, ' '));
-               when 'C' => Emit ((Right, ' '));
-               when 'D' => Emit ((Left, ' '));
-               when 'H' => Emit ((Line_Start, ' '));
-               when 'Z' => Emit ((Mark_Up, ' '));
-               when 'F' => Emit ((Line_End, ' '));
-               when '3' => Emit ((Delete_Forward, ' '));
-               when others => Emit ((Ignored, ' '));
+               when 'A'    =>
+                  Emit ((Up, ' '));
+
+               when 'B'    =>
+                  Emit ((Down, ' '));
+
+               when 'C'    =>
+                  Emit ((Right, ' '));
+
+               when 'D'    =>
+                  Emit ((Left, ' '));
+
+               when 'H'    =>
+                  Emit ((Line_Start, ' '));
+
+               when 'Z'    =>
+                  Emit ((Mark_Up, ' '));
+
+               when 'F'    =>
+                  Emit ((Line_End, ' '));
+
+               when '3'    =>
+                  Emit ((Delete_Forward, ' '));
+
+               when others =>
+                  Emit ((Ignored, ' '));
             end case;
             --  Parameterized sequences run on to a final byte outside the
             --  digit and semicolon range.
