@@ -27,7 +27,7 @@ flow:
 	$(GNATPROVE) -P fuzzy.gpr --mode=flow -j$(JOBS)
 
 prove:
-	$(GNATPROVE) -P fuzzy.gpr --level=2 --timeout=20 --prover=cvc5,z3 --counterexamples=off -j$(JOBS)
+	$(GNATPROVE) -P fuzzy.gpr --level=2 --proof=per_path --timeout=20 --prover=cvc5,z3 --counterexamples=off -j$(JOBS)
 
 benchmark: all
 	bin/bench_fuzzy

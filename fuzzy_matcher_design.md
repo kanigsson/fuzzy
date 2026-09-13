@@ -670,7 +670,10 @@ Every returned result:
 
 The returned results are ordered according to the documented deterministic ranking.
 
-A stronger later property could prove that the returned result set is exactly the best `K` candidates according to the ranking relation.
+The implemented `Search` contract also proves that every omitted matching
+candidate ranks below every returned result, and that omission is allowed only
+when the output buffer is full. With distinct, correctly scored results, this
+establishes exactly the best `min(K, number of matches)` candidates.
 
 ---
 

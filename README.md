@@ -220,15 +220,25 @@ establish:
   match, so a negative answer excludes alternative alignments too.
 - Every returned result identifies a matching input candidate and carries the
   same score as `Score`; `Match_Details` returns that score as well.
-- The returned prefix is strictly ordered by the documented ranking relation.
+- Every earlier result ranks strictly above every later result. Together with
+  score consistency, this also excludes duplicate candidate indexes.
+- Every matching candidate is either returned or ranks strictly below every
+  returned result; a match can be omitted only when the result buffer is full.
+  Consequently, `Result_Count = min(K, number of matches)`, where K is the
+  output capacity, and the returned prefix is exactly the best K matches
+  (or all matches when fewer exist). This includes K=0.
 - A successful append yields a valid slice holding exactly the appended item,
   and leaves the already-filled prefix of the buffer unchanged, so slices handed
   out earlier stay valid and keep holding what they held. A refused append
   changes nothing.
 
 There are no assumed lemmas, skipped proofs, or SPARK exclusions in the library.
-Exact best-K membership and result-count completeness are tested against an
-independent full-sort oracle; they are not claimed as proved postconditions.
+The search proof maintains these properties over the processed candidate
+prefix. Insertion preserves every old result except a possible last-place
+eviction, and every retained result ranks above an evicted or rejected match.
+The strengthened `Search` postcondition states this coverage property over the
+whole input. Independent full-sort oracle tests also check membership, count,
+and ranking ties across candidate orderings and output capacities.
 The CLI, tests, and benchmark are ordinary Ada/Python outside the proof boundary.
 The usual SPARK precondition and sufficient stack/storage assumptions apply.
 

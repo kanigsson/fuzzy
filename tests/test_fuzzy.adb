@@ -113,17 +113,9 @@ procedure Test_Fuzzy is
       return Result;
    end Word;
 
-   procedure Search_Case (P : String; Capacity : Natural) is
-      Data          : constant String := "ab/aBa_abab/aBxyz";
-      Items         : constant Candidate_Array (7 .. 14) :=
-        [(Text => (1, 2)),
-         (Text => (4, 2)),
-         (Text => (1, 5)),
-         (Text => (6, 3)),
-         (Text => (9, 2)),
-         (Text => (1, 0)),
-         (Text => (9, 5)),
-         (Text => (14, 3))];
+   procedure Search_Corpus
+     (P, Data : String; Items : Candidate_Array; Capacity : Natural)
+   is
       Results       : Search_Result_Array (19 .. 18 + Capacity);
       Expected      : Search_Result_Array (1 .. Items'Length);
       Count, Total  : Natural := 0;
@@ -166,6 +158,21 @@ procedure Test_Fuzzy is
       for R in 1 .. Count loop
          Check (Results (18 + R) = Expected (R));
       end loop;
+   end Search_Corpus;
+
+   procedure Search_Case (P : String; Capacity : Natural) is
+      Data  : constant String := "ab/aBa_abab/aBxyz";
+      Items : constant Candidate_Array (7 .. 14) :=
+        [(Text => (1, 2)),
+         (Text => (4, 2)),
+         (Text => (1, 5)),
+         (Text => (6, 3)),
+         (Text => (9, 2)),
+         (Text => (1, 0)),
+         (Text => (9, 5)),
+         (Text => (14, 3))];
+   begin
+      Search_Corpus (P, Data, Items, Capacity);
    end Search_Case;
    --  One of four corpus items, named by a digit so sequences of appends can
    --  be enumerated as strings.
@@ -317,6 +324,42 @@ begin
       Search ("a", Data, C, R, N);
       Check (N = 2 and then R (1).Score = R (2).Score);
       Check (R (1).Candidate = 8 and R (2).Candidate = 7);
+   end;
+   declare
+      --  Full-buffer insertion with both array bounds at Integer'Last.
+      C : constant Candidate_Array (Integer'Last - 2 .. Integer'Last) :=
+        [(Text => (1, 3)), (Text => (1, 2)), (Text => (1, 1))];
+      R : Search_Result_Array (Integer'Last - 1 .. Integer'Last);
+      N : Natural;
+   begin
+      Search ("", "aaa", C, R, N);
+      Check (N = 2);
+      Check (R (R'First).Candidate = Integer'Last);
+      Check (R (R'Last).Candidate = Integer'Last - 1);
+   end;
+   --  Enumerate corpus orderings, including repeated slices, equal scores
+   --  with different lengths, failed matches, and replacement of a full K.
+   declare
+      Data  : constant String := "abbbbbbbbbbb_az";
+      Pool  : constant Candidate_Array :=
+        [(Text => (1, 12)),
+         (Text => (13, 2)),
+         (Text => (14, 1)),
+         (Text => (15, 1))];
+      Items : Candidate_Array (7 .. 10);
+      Code  : Natural;
+   begin
+      for Encoding in 0 .. 4**Items'Length - 1 loop
+         Code := Encoding;
+         for C in Items'Range loop
+            Items (C) := Pool (Code mod 4 + 1);
+            Code := Code / 4;
+         end loop;
+         for Capacity in 0 .. Items'Length + 1 loop
+            Search_Corpus ("a", Data, Items, Capacity);
+            Search_Corpus ("", Data, Items, Capacity);
+         end loop;
+      end loop;
    end;
    --  Corpus packing.
    declare

@@ -171,6 +171,15 @@ is
        Left.Candidate in Candidates'Range
        and then Right.Candidate in Candidates'Range;
 
+   --  Membership only in the meaningful output prefix.
+   function Contains
+     (Results   : Search_Result_Array;
+      Count     : Natural;
+      Candidate : Candidate_Index) return Boolean
+   is (for some R in Results'Range =>
+         R - Results'First < Count and then Results (R).Candidate = Candidate)
+   with Ghost, Pre => Count <= Results'Length;
+
    procedure Search
      (Pattern      : String;
       Data         : String;
@@ -197,10 +206,28 @@ is
                                    (Pattern,
                                     Data,
                                     Candidates (Results (R).Candidate).Text)))
+       --  Strict pairwise ranking and score consistency exclude duplicates.
        and then (for all R in Results'Range =>
-                   (if R - Results'First < Result_Count
-                      and then R > Results'First
-                    then Better (Results (R - 1), Results (R), Candidates)));
+                   (for all S in Results'Range =>
+                      (if R - Results'First < Result_Count
+                         and then S - Results'First < Result_Count
+                         and then R < S
+                       then Better (Results (R), Results (S), Candidates))))
+       --  Every omitted match is worse than every returned result, and
+       --  omission is allowed only when the output buffer is full.
+       --  Thus Count = min (capacity, number of matching candidates).
+       and then (for all C in Candidates'Range =>
+                   (if Is_Subsequence (Pattern, Data, Candidates (C).Text)
+                      and then not Contains (Results, Result_Count, C)
+                    then
+                      Result_Count = Results'Length
+                      and then (for all R in Results'Range =>
+                                  Better
+                                    (Results (R),
+                                     (C,
+                                      Score_Of
+                                        (Pattern, Data, Candidates (C).Text)),
+                                     Candidates))));
 
    procedure Match_Details
      (Pattern        : String;
