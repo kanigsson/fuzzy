@@ -1,5 +1,10 @@
 # Fuzzy
 
+> **This repository has moved.** Development continues in
+> [kanigsson/spark-world](https://github.com/kanigsson/spark-world), under
+> [`apps/fuzzy/`](https://github.com/kanigsson/spark-world/tree/main/apps/fuzzy).
+> This repository is no longer maintained.
+
 An allocation-free fuzzy matcher Ada/SPARK library. Case-sensitive,
 byte-oriented (no encoding support), returns the K best scores. A small unproved
 CLI is also provided for convenience.
